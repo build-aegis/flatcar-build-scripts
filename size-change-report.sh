@@ -12,15 +12,13 @@
 ### size-change-report.sh [options] <spec_a> <spec_b>
 ###
 ### spec is a string in one of three forms:
-### release:<channel>:<board>:<version>:<kind> (e.g. release:alpha:amd64-usr:3480.0.0:old)
+### release:<channel>:<board>:<version>:<kind> (e.g. release:alpha:amd64-usr:3480.0.0:wtd)
 ### bincache:<arch>:<version>:<kind> (e.g. bincache:amd64:3483.0.0+weekly-updates-11:wtd)
 ### local:<dirpath>:<kind>
 ###
 ### channel: alpha, beta, stable, lts
 ### board: amd64-usr, arm64-usr
-### kind: old, wtd, initrd-old, initrd-wtd, oem-${OEM}-old, oem-${OEM}-wtd,
-###       base-sysext-${NAME}-old base-sysext-${NAME}-wtd
-###       extra-sysext-${NAME}-old extra-sysext-${NAME}-wtd
+### kind: wtd, initrd-wtd, oem-${OEM}-wtd, base-sysext-${NAME}-wtd, extra-sysext-${NAME}-wtd
 ### arch: amd64, arm64
 ###
 ### options:
@@ -98,14 +96,8 @@ function file_from_kind {
     local kind="${1}"; shift
     local oemid name
     case "${kind}" in
-        old)
-            echo 'flatcar_production_image_contents.txt'
-            ;;
         wtd)
             echo 'flatcar_production_image_contents_wtd.txt'
-            ;;
-        initrd-old)
-            echo 'flatcar_production_image_initrd_contents.txt'
             ;;
         initrd-wtd)
             echo 'flatcar_production_image_initrd_contents_wtd.txt'
@@ -113,35 +105,17 @@ function file_from_kind {
         realinitrd-wtd)
             echo 'flatcar_production_image_realinitrd_contents_wtd.txt'
             ;;
-        oem-*-old)
-            oemid=${kind}
-            oemid=${oemid#oem-}
-            oemid=${oemid%-old}
-            echo "oem-${oemid}_contents.txt"
-            ;;
         oem-*-wtd)
             oemid=${kind}
             oemid=${oemid#oem-}
             oemid=${oemid%-wtd}
             echo "oem-${oemid}_contents_wtd.txt"
             ;;
-        base-sysext-*-old)
-            name=${kind}
-            name=${name#base-sysext-}
-            name=${name%-old}
-            echo "rootfs-included-sysexts/${name}_contents.txt"
-            ;;
         base-sysext-*-wtd)
             name=${kind}
             name=${name#base-sysext-}
             name=${name%-wtd}
             echo "rootfs-included-sysexts/${name}_contents_wtd.txt"
-            ;;
-        extra-sysext-*-old)
-            name=${kind}
-            name=${name#extra-sysext-}
-            name=${name%-old}
-            echo "flatcar-${name}_contents.txt"
             ;;
         extra-sysext-*-wtd)
             name=${kind}
@@ -288,16 +262,16 @@ function simplified_kind {
     kind=$(cat "${path}")
 
     case "${kind}" in
-        old|wtd)
+        wtd)
             :
             ;;
-        initrd-old|initrd-wtd)
+        initrd-wtd)
             kind="${kind#initrd-}"
             ;;
         realinitrd-wtd)
             kind="${kind#realinitrd-}"
             ;;
-        oem-*-old|oem-*-wtd|base-sysext-*-old|base-sysext-*-wtd|extra-sysext-*-old|extra-sysext-*-wtd)
+        oem-*-wtd|base-sysext-*-wtd|extra-sysext-*-wtd)
             kind=${kind##*-}
             ;;
         *)
@@ -312,12 +286,7 @@ if any_missing "${wd}/output" "${wd}/detailed_output" "${wd}/for_cache_key_cache
     echo "Generating file listing diffs"
     kind=$(simplified_kind "${wd}/kind-of-A")
     for f in "${wd}/A" "${wd}/B"; do
-        if [[ "${kind}" = 'old' ]]; then
-            # Cut date and time noise away
-            sed -e 's/....-..-.. ..:.. //g' "${f}" >"${f}.1.no-date-time"
-        else
-            cp -a "${f}" "${f}.1.no-date-time"
-        fi
+        cp -a "${f}" "${f}.1.no-date-time"
         # Sort by path
         xsort -t / -k 2 "${f}.1.no-date-time" >"${f}.2.sorted"
         # Drop directories and symlinks
@@ -333,29 +302,16 @@ if any_missing "${wd}/output" "${wd}/detailed_output" "${wd}/for_cache_key_cache
         xgrep -v /usr/share/SLSA/ "${f}.6a.no-numbers" >"${f}.7a.no-slsa"
 
         # Drop unnecessary parts (permissions, user and group information)
-        if [[ "${kind}" = 'old' ]]; then
-            # Keep only hardlink count, size and path
-            xawk '{ print $2 " " $5 " " $6 }' "${f}.4.cut-kernel" >"${f}.5b.needed-parts-only"
-        else
-            # Keep only device ID, inode, hardlink count, size and path
-            xawk '{ print $2 " " $3 " " $4 " " $5 " " $6 }' "${f}.4.cut-kernel" >"${f}.5b.needed-parts-only"
-        fi
+        # Keep only device ID, inode, hardlink count, size and path
+        xawk '{ print $2 " " $3 " " $4 " " $5 " " $6 }' "${f}.4.cut-kernel" >"${f}.5b.needed-parts-only"
         # Generate a single form with lines having cache key, hardlink count, size and path info only
-        if [[ "${kind}" = 'old' ]]; then
-            # Cache key will be made from hardlink count and size
-            # 1 - hardlink count
-            # 2 - size
-            # 3 - path
-            xawk '{ print $1 "-" $2 " " $1 " " $2 " " $3 }' "${f}.5b.needed-parts-only" >"${f}.6b.single-form"
-        else
-            # Cache key will be made from device ID and inode
-            # 1 - device ID
-            # 2 - inode
-            # 3 - hardlink count
-            # 4 - size
-            # 5 - path
-            xawk '{ print $1 "-" $2 " " $3 " " $4 " " $5 }' "${f}.5b.needed-parts-only" >"${f}.6b.single-form"
-        fi
+        # Cache key will be made from device ID and inode
+        # 1 - device ID
+        # 2 - inode
+        # 3 - hardlink count
+        # 4 - size
+        # 5 - path
+        xawk '{ print $1 "-" $2 " " $3 " " $4 " " $5 }' "${f}.5b.needed-parts-only" >"${f}.6b.single-form"
         # Generate a final form without cache key for smaller diffs
         # (so, only hardlink count, size and path info).
         xawk '{ print $2 " " $3 " " $4 }' "${f}.6b.single-form" >"${f}.7ba.final-form-no-cache-key"
