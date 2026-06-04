@@ -322,23 +322,23 @@ if any_missing "${wd}/output" "${wd}/detailed_output" "${wd}/for_cache_key_cache
         xsort -t / -k 2 "${f}.1.no-date-time" >"${f}.2.sorted"
         # Drop directories and symlinks
         xgrep -v '^[dl]' "${f}.2.sorted" > "${f}.3.files-only"
+        # Simplify kernel versions to just a.b.c
+        sed -E 's#[0-9]+\.[0-9]+\.[0-9]+-flatcar#a.b.c-flatcar#g' "${f}.3.files-only" >"${f}.4.cut-kernel"
 
         # Keep paths only
-        cut -d . -f 2- "${f}.3.files-only" > "${f}.4a.paths-only"
-        # Simplify dot-separated sequences of numbers to a single zero (that also handles kernel versions)
-        sed -E 's/[0-9]+(\.[0-9]+)*/0/g' "${f}.4a.paths-only" >"${f}.5a.no-numbers"
+        cut -d . -f 2- "${f}.4.cut-kernel" > "${f}.5a.paths-only"
+        # Simplify dot-separated sequences of numbers to a single zero
+        sed -E 's/[0-9]+(\.[0-9]+)*/0/g' "${f}.5a.paths-only" >"${f}.6a.no-numbers"
         # Skip SLSA stuff
-        xgrep -v /usr/share/SLSA/ "${f}.5a.no-numbers" >"${f}.6a.no-slsa"
+        xgrep -v /usr/share/SLSA/ "${f}.6a.no-numbers" >"${f}.7a.no-slsa"
 
-        # Simplify kernel versions to just a.b.c
-        sed -E 's#[0-9]+\.[0-9]+\.[0-9]+-flatcar#a.b.c-flatcar#g' "${f}.3.files-only" >"${f}.4b.cut-kernel"
         # Drop unnecessary parts (permissions, user and group information)
         if [[ "${kind}" = 'old' ]]; then
             # Keep only hardlink count, size and path
-            xawk '{ print $2 " " $5 " " $6 }' "${f}.4b.cut-kernel" >"${f}.5b.needed-parts-only"
+            xawk '{ print $2 " " $5 " " $6 }' "${f}.4.cut-kernel" >"${f}.5b.needed-parts-only"
         else
             # Keep only device ID, inode, hardlink count, size and path
-            xawk '{ print $2 " " $3 " " $4 " " $5 " " $6 }' "${f}.4b.cut-kernel" >"${f}.5b.needed-parts-only"
+            xawk '{ print $2 " " $3 " " $4 " " $5 " " $6 }' "${f}.4.cut-kernel" >"${f}.5b.needed-parts-only"
         fi
         # Generate a single form with lines having cache key, hardlink count, size and path info only
         if [[ "${kind}" = 'old' ]]; then
@@ -369,7 +369,7 @@ if any_missing "${wd}/output" "${wd}/detailed_output" "${wd}/for_cache_key_cache
     xgit diff \
         --no-index \
         -- \
-        "${wd}/A.6a.no-slsa" "${wd}/B.6a.no-slsa" | \
+        "${wd}/A.7a.no-slsa" "${wd}/B.7a.no-slsa" | \
         tail --lines +6 | \
         xgrep -v '^@' >"${wd}/output"
 
