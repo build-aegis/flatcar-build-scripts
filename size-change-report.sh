@@ -159,7 +159,7 @@ function handle_spec {
             kind="${spec_ar[4]}"
             url="https://${channel}.release.flatcar-linux.net/${board}/${version}"
             file=$(file_from_kind "${spec}" "${kind}")
-            curl --location --silent -S -o "${output}" "${url}/${file}"
+            curl --fail --location --silent -S -o "${output}" "${url}/${file}"
             echo "${kind}" >"${output_kind}"
             ;;
         bincache)
@@ -172,7 +172,7 @@ function handle_spec {
             kind="${spec_ar[3]}"
             url="https://bincache.flatcar-linux.net/images/${arch}/${version}"
             file=$(file_from_kind "${spec}" "${kind}")
-            curl --location --silent -S -o "${output}" "${url}/${file}"
+            curl --fail --location --silent -S -o "${output}" "${url}/${file}"
             echo "${kind}" >"${output_kind}"
             ;;
         local)
