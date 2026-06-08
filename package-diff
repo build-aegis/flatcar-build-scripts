@@ -70,8 +70,8 @@ function download {
         URL_B="https://bucket.release.flatcar-linux.net/flatcar-jenkins${MODE_B}${CHANNEL_B}/boards/${BOARD_B}/${VERSION_B}/${file}"
     fi
 
-    curl --location --silent -S -o "$A" "$URL_A"
-    curl --location --silent -S -o "$B" "$URL_B"
+    curl --fail --location --silent -S -o "$A" "$URL_A" || return 1
+    curl --fail --location --silent -S -o "$B" "$URL_B" || return 1
 
     if [[ ! -s "${A}" ]] || [[ ! -s "${B}" ]]; then
         return 1
