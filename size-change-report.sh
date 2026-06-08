@@ -459,7 +459,8 @@ function munge_path_into_regexp {
     local path="${1}"; shift
     local regexp="${path}"
 
-    # escape special stuff, means . * $ ^ [
+    # escape special stuff, means \ . * $ ^ [
+    regexp="${regexp//\\/\\\\}"
     regexp="${regexp//./\\.}"
     regexp="${regexp//\*/\\\*}"
     regexp="${regexp//^/\\^}"
